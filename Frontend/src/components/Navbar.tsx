@@ -6,6 +6,7 @@ import {
 } from "react-router-dom";
 import { useWishlist } from "../lib/WishlistContext";
 import React, { useState } from "react";
+import logo from "../assets/logos/Logo1.png";
 
 const Navbar: React.FC = () => {
   const location = useLocation();
@@ -35,7 +36,7 @@ const Navbar: React.FC = () => {
         <div className="flex items-center gap-8">
           <Link to="/" className="flex items-center group">
             <img
-              src="/src/assets/logos/Logo1.png"
+              src={logo}
               alt="Curate."
               className="h-8 transition-transform group-hover:scale-105"
             />
