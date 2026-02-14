@@ -1,0 +1,12 @@
+{
+  "name": "Celestial Velvet Cushion",
+  "price": 45.0,
+  "description": "Premium velvet cushion with gold embroidery.",
+  "category": ["Decor", "Living Room"],
+  "image": "https://example.com/cushion.jpg",
+  "features": ["Hand-stitched", "Hypoallergenic", "Durable"],
+  "rating": 4.5,
+  "reviews": 120,
+  "stylingTip": "Pairs well with dark leather sofas.",
+  "affiliateLink": "https://amazon.com/dp/..."
+}

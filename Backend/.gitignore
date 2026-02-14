@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+.env.local
+.env.*
+
+# Credentials should NEVER be committed.
+# Use Vercel dashboard or .env.local (gitignored) for secrets.

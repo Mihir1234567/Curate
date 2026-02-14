@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles can go here */
+body {
+  font-family: "Inter", sans-serif;
+  background-color: #f6f8f7;
+  color: #1a2e29;
+}
+
+/* Custom Range Slider Styles - Match User Image */
+.range-slider-container {
+  position: relative;
+  width: 100%;
+  height: 6px;
+  background: #dbdbdb;
+  border-radius: 9999px;
+  margin: 20px 0 40px;
+}
+
+.range-slider-highlight {
+  position: absolute;
+  height: 100%;
+  background: #30e8ba; /* Primary Emerald track */
+  border-radius: 9999px;
+  z-index: 1;
+}
+
+.range-input {
+  position: absolute;
+  width: 100%;
+  background: transparent;
+  pointer-events: none;
+  appearance: none;
+  -webkit-appearance: none;
+  z-index: 2;
+  margin: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Chrome/Safari Thumbs */
+.range-input::-webkit-slider-thumb {
+  pointer-events: auto;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  background: #30e8ba;
+  border-radius: 9999px;
+  cursor: pointer;
+  position: relative;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+  border: 2px solid white;
+}
+
+/* Firefox Thumbs */
+.range-input::-moz-range-thumb {
+  pointer-events: auto;
+  width: 14px;
+  height: 14px;
+  background: #30e8ba;
+  border-radius: 9999px;
+  cursor: pointer;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+  border: 2px solid white;
+}
+
+/* Hide default track */
+.range-input::-webkit-slider-runnable-track {
+  background: transparent;
+}
+.range-input::-moz-range-track {
+  background: transparent;
+}
