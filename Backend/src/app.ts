@@ -62,6 +62,10 @@ app.get("/api/health", (_req, res) => {
   res.json({ success: true, message: "Server is running" });
 });
 
+app.get("/", (_req, res) => {
+  res.send("Server is running");
+});
+
 // ── Error Handler (must be last) ─────────────────────
 app.use(errorHandler);
 
