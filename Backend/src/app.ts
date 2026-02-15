@@ -19,12 +19,21 @@ app.use(morgan("dev"));
 // ── Security ─────────────────────────────────────────
 app.use(helmet());
 
-const corsOrigin = process.env.CORS_ORIGIN || "*";
-if (corsOrigin === "*" && process.env.NODE_ENV === "production") {
-  console.warn(
-    "⚠️  CORS_ORIGIN is not set — using wildcard '*'. Set CORS_ORIGIN to your frontend domain in production.",
-  );
-}
+const corsOrigin = process.env.CORS_ORIGIN?.split(",") || [];
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || corsOrigin.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  }),
+);
+
 app.use(
   cors({
     origin: corsOrigin,
