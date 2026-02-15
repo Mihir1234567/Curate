@@ -19,28 +19,26 @@ app.use(morgan("dev"));
 // ── Security ─────────────────────────────────────────
 app.use(helmet());
 
-const corsOrigin = process.env.CORS_ORIGIN?.split(",") || [];
+const allowedOrigins = process.env.CORS_ORIGIN?.split(",") || [];
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!origin || corsOrigin.includes(origin)) {
+      // Allow server-to-server or curl requests (no origin)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
         callback(new Error("Not allowed by CORS"));
       }
     },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   }),
 );
 
-app.use(
-  cors({
-    origin: corsOrigin,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  }),
-);
 
 // Rate limiting — 100 requests per 15 minutes per IP
 const limiter = rateLimit({
