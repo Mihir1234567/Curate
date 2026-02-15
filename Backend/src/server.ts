@@ -3,7 +3,7 @@ dotenv.config();
 
 import app from "./app";
 import { connectDB } from "./config/db";
-import { configureCloudinary } from "./config/cloudinary";
+import { configureCloudinary, cloudinary } from "./config/cloudinary";
 import { Admin } from "./models/Admin";
 
 const PORT = process.env.PORT || 5000;
@@ -27,6 +27,20 @@ const start = async (): Promise<void> => {
   try {
     await connectDB();
     configureCloudinary();
+    console.log("☁️  Cloudinary configured:", {
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key: process.env.CLOUDINARY_API_KEY
+        ? `${process.env.CLOUDINARY_API_KEY.substring(0, 4)}...`
+        : "missing",
+    });
+
+    // Test Cloudinary connection
+    cloudinary.api
+      .ping()
+      .then(() => console.log("✅ Cloudinary connection verified"))
+      .catch((err) =>
+        console.error("❌ Cloudinary connection failed:", err.message),
+      );
 
     // ⚠️ Admin seed — only runs when explicitly enabled via env var.
     // NEVER set SEED_ADMIN=true in production after initial setup.

@@ -19,7 +19,9 @@ app.use(morgan("dev"));
 // ── Security ─────────────────────────────────────────
 app.use(helmet());
 
-const allowedOrigins = process.env.CORS_ORIGIN?.split(",") || [];
+const allowedOrigins = process.env.CORS_ORIGIN?.split(",") || [
+  "http://localhost:3000",
+];
 
 app.use(
   cors({
@@ -30,15 +32,18 @@ app.use(
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        callback(new Error("Not allowed by CORS"));
+        console.warn(
+          `CORS blocked: Origin ${origin} is not in allowedOrigins:`,
+          allowedOrigins,
+        );
+        callback(null, false);
       }
     },
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   }),
 );
-
 
 // Rate limiting — 100 requests per 15 minutes per IP
 const limiter = rateLimit({

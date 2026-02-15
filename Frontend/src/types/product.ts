@@ -1,9 +1,15 @@
+export interface ProductImage {
+  url: string;
+  publicId: string;
+  isMain?: boolean;
+}
+
 export interface Product {
   id: string;
   name: string;
   price: number;
   category: string | string[];
-  image: string;
+  images: ProductImage[];
   description: string;
   features: string[];
   inStock: boolean;

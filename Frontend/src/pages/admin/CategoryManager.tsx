@@ -78,9 +78,9 @@ const CategoryManager: React.FC = () => {
         "success",
       );
       resetForm();
-    } catch (err) {
+    } catch (err: any) {
       logError("Failed to save category", err);
-      showToast("Failed to save category", "error");
+      showToast(err.message || "Failed to save category", "error");
     } finally {
       setAdding(false);
     }
@@ -128,9 +128,9 @@ const CategoryManager: React.FC = () => {
         await api.deleteCategory(id);
         setCategories(categories.filter((c) => c.id !== id));
         showToast("Category deleted successfully", "success");
-      } catch (err) {
+      } catch (err: any) {
         logError("Failed to delete", err);
-        showToast("Failed to delete category", "error");
+        showToast(err.message || "Failed to delete category", "error");
       }
     }
   };
@@ -250,7 +250,8 @@ const CategoryManager: React.FC = () => {
                           if (file) {
                             setUploading(true);
                             try {
-                              const url = await api.uploadImage(file);
+                              const uploaded = await api.uploadImages([file]);
+                              const url = uploaded[0].url;
                               setFormData((prev) => ({
                                 ...prev,
                                 imageUploadUrl: url,
@@ -259,9 +260,12 @@ const CategoryManager: React.FC = () => {
                                 "Image uploaded successfully",
                                 "success",
                               );
-                            } catch (err) {
+                            } catch (err: any) {
                               logError("Upload failed", err);
-                              showToast("Image upload failed", "error");
+                              showToast(
+                                err.message || "Image upload failed",
+                                "error",
+                              );
                             } finally {
                               setUploading(false);
                             }
@@ -329,7 +333,12 @@ const CategoryManager: React.FC = () => {
                             className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm flex items-center gap-3"
                           >
                             <img
-                              src={p.image}
+                              src={
+                                p.images?.find((img: any) => img.isMain)?.url ||
+                                p.images?.[0]?.url ||
+                                p.image ||
+                                "https://via.placeholder.com/150"
+                              }
                               className="w-6 h-6 rounded object-cover"
                               alt=""
                             />
@@ -340,22 +349,29 @@ const CategoryManager: React.FC = () => {
                   )}
                   {formData.featuredProductId && (
                     <div className="mt-2 flex items-center gap-3 p-2 bg-gray-50 rounded-lg border border-gray-100">
-                      <img
-                        src={
-                          products.find(
-                            (p) => p.id === formData.featuredProductId,
-                          )?.image
-                        }
-                        className="w-12 h-12 rounded object-cover"
-                        alt=""
-                      />
-                      <span className="text-xs font-medium text-gray-600">
-                        {
-                          products.find(
-                            (p) => p.id === formData.featuredProductId,
-                          )?.name
-                        }
-                      </span>
+                      {(() => {
+                        const product = products.find(
+                          (p) => p.id === formData.featuredProductId,
+                        );
+                        const imageUrl =
+                          product?.images?.find((img: any) => img.isMain)
+                            ?.url ||
+                          product?.images?.[0]?.url ||
+                          product?.image ||
+                          "https://via.placeholder.com/150";
+                        return (
+                          <>
+                            <img
+                              src={imageUrl}
+                              className="w-12 h-12 rounded object-cover"
+                              alt=""
+                            />
+                            <span className="text-xs font-medium text-gray-600">
+                              {product?.name}
+                            </span>
+                          </>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>
@@ -441,14 +457,16 @@ const CategoryManager: React.FC = () => {
             )}
             <button
               onClick={handleSaveCategory}
-              disabled={adding || !formData.name.trim()}
+              disabled={adding || uploading || !formData.name.trim()}
               className="px-8 py-2 bg-primary text-neutral-dark font-bold rounded-lg hover:bg-neutral-dark hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {adding
                 ? "Saving..."
-                : editingCategory
-                  ? "Update Category"
-                  : "Create Category"}
+                : uploading
+                  ? "Uploading..."
+                  : editingCategory
+                    ? "Update Category"
+                    : "Create Category"}
             </button>
           </div>
         </div>

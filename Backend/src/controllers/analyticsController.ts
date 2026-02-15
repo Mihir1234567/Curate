@@ -30,7 +30,10 @@ export const getAnalytics = asyncHandler(
       name: p.name,
       category: p.category,
       price: p.price,
-      image: p.image,
+      image:
+        p.images?.find((img: any) => img.isMain)?.url ||
+        p.images?.[0]?.url ||
+        "",
       clicks: p.reviews * 10, // Proxy: reviews × 10 as mock clicks
     }));
 

@@ -25,9 +25,21 @@ const productSchema = new Schema<IProduct>(
       required: [true, "At least one category is required"],
       index: true,
     },
-    image: {
-      type: String,
-      required: [true, "Product image is required"],
+    images: {
+      type: [
+        {
+          url: { type: String, required: true },
+          publicId: { type: String, required: true },
+          isMain: { type: Boolean, default: false },
+        },
+      ],
+      required: [true, "Product images are required"],
+      validate: [
+        function (val: any[]) {
+          return val.length > 0;
+        },
+        "At least one image is required",
+      ],
     },
     description: {
       type: String,
@@ -72,6 +84,24 @@ const productSchema = new Schema<IProduct>(
 productSchema.pre("save", function (next) {
   if (this.isModified("name")) {
     this.slug = slugify(this.name, { lower: true, strict: true });
+  }
+
+  // Ensure exactly one image is marked as main
+  if (this.images && this.images.length > 0) {
+    const mainCount = this.images.filter((img) => img.isMain).length;
+    if (mainCount === 0) {
+      // Default first one to main if none selected
+      this.images[0].isMain = true;
+    } else if (mainCount > 1) {
+      // If multiple (shouldn't happen with UI), keep only first main
+      let foundFirst = false;
+      this.images.forEach((img) => {
+        if (img.isMain) {
+          if (foundFirst) img.isMain = false;
+          else foundFirst = true;
+        }
+      });
+    }
   }
   next();
 });

@@ -91,7 +91,7 @@ const ProductDetail: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
         {/* Gallery */}
         <div className="lg:col-span-7">
-          <ImageGallery images={[product.image]} alt={product.name} />
+          <ImageGallery images={product.images || []} alt={product.name} />
         </div>
 
         {/* Info */}

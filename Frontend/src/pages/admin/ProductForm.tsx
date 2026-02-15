@@ -4,7 +4,7 @@ import { api } from "../../lib/api";
 import { logError } from "../../lib/logger";
 import { Button } from "../../components/ui/Button";
 import { FormInput } from "../../components/ui/FormInput";
-import { Category } from "../../types";
+import { Category, ProductImage } from "../../types";
 import { useToast } from "../../context/ToastContext";
 
 const ProductForm: React.FC = () => {
@@ -17,12 +17,16 @@ const ProductForm: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [categories, setCategories] = useState<Category[]>([]);
+
+  // State for images
+  const [images, setImages] = useState<ProductImage[]>([]);
+  const [removedPublicIds, setRemovedPublicIds] = useState<string[]>([]);
+
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     category: [] as string[],
     price: "",
-    image: "",
     features: "" as string | string[],
     rating: "0",
     reviews: "0",
@@ -38,29 +42,31 @@ const ProductForm: React.FC = () => {
         setCategories(cats);
 
         if (isEditMode && id) {
-          // In a real app we would fetch the product here too if not passed in state
-          // For now, assuming we might need to fetch it or finding it in the list
-          // But since our mock helper getProducts returns all, let's use getProductBySlug if it works by ID too or update API
-          // For simplicity in this mock, we skip pre-filling if we don't have a specific get-by-id that works purely on ID for this form
-          // BUT wait, we added getProductBySlug, let's use that as ID lookup for now
           const product = await api.getProductBySlug(id);
           if (product) {
+            console.log("Product data fetched:", product);
             setFormData({
               name: product.name,
               description: product.description,
               category: Array.isArray(product.category)
                 ? product.category
-                : [product.category],
+                : product.category
+                  ? [product.category]
+                  : [],
               price: product.price.toString(),
-              image: product.image,
               features: Array.isArray(product.features)
                 ? product.features.join(", ")
-                : product.features,
+                : product.features || "",
               rating: (product.rating || 0).toString(),
               reviews: (product.reviews || 0).toString(),
               stylingTip: product.stylingTip || "",
               affiliateLink: product.affiliateLink || "",
             });
+            console.log(
+              "FormData initialized with category:",
+              product.category,
+            );
+            setImages(product.images || []);
           }
         }
       } catch (err) {
@@ -71,19 +77,43 @@ const ProductForm: React.FC = () => {
   }, [isEditMode, id]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
     setUploading(true);
     try {
-      const url = await api.uploadImage(file);
-      setFormData((prev) => ({ ...prev, image: url }));
-    } catch (err) {
+      const uploadedMetadata = await api.uploadImages(files);
+      setImages((prev) => [...prev, ...uploadedMetadata]);
+      showToast(`Successfully uploaded ${files.length} image(s)`, "success");
+    } catch (err: any) {
       logError("Image upload failed", err);
-      showToast("Failed to upload image. Please try again.", "error");
+      showToast(
+        err.message || "Failed to upload image(s). Please try again.",
+        "error",
+      );
     } finally {
       setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
+  };
+
+  const removeImage = (index: number) => {
+    const imageToRemove = images[index];
+
+    // If it's an existing image (has publicId and we are in edit mode), track it for backend deletion
+    if (imageToRemove.publicId && isEditMode) {
+      setRemovedPublicIds((prev) => [...prev, imageToRemove.publicId]);
+    }
+
+    setImages((prev) => prev.filter((_, i) => i !== index));
+  };
+  const setMainImage = (index: number) => {
+    setImages((prev) =>
+      prev.map((img, i) => ({
+        ...img,
+        isMain: i === index,
+      })),
+    );
   };
 
   const handleJsonImport = () => {
@@ -100,7 +130,6 @@ const ProductForm: React.FC = () => {
             : prev.category,
         price:
           parsed.price !== undefined ? parsed.price.toString() : prev.price,
-        image: parsed.image || prev.image,
         features: Array.isArray(parsed.features)
           ? parsed.features.join(", ")
           : parsed.features || prev.features,
@@ -113,6 +142,14 @@ const ProductForm: React.FC = () => {
         stylingTip: parsed.stylingTip || prev.stylingTip,
         affiliateLink: parsed.affiliateLink || prev.affiliateLink,
       }));
+
+      if (parsed.images && Array.isArray(parsed.images)) {
+        setImages(parsed.images);
+      } else if (parsed.image && typeof parsed.image === "string") {
+        // Fallback for legacy JSON format
+        setImages([{ url: parsed.image, publicId: "legacy-manual-import" }]);
+      }
+
       setRawJson("");
       showToast("Form auto-filled from JSON successfully!", "success");
     } catch (err) {
@@ -131,51 +168,51 @@ const ProductForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (images.length === 0) {
+      showToast("At least one image is required", "error");
+      return;
+    }
+
     setLoading(true);
     try {
+      const productPayload = {
+        name: formData.name,
+        description: formData.description,
+        category: formData.category,
+        price: Number(formData.price),
+        images: images,
+        features:
+          typeof formData.features === "string"
+            ? formData.features
+                .split(",")
+                .map((f) => f.trim())
+                .filter(Boolean)
+            : formData.features,
+        rating: Number(formData.rating),
+        reviews: Number(formData.reviews),
+        stylingTip: formData.stylingTip,
+        affiliateLink: formData.affiliateLink,
+        removedImages: removedPublicIds,
+      };
+
       if (isEditMode && id) {
-        await api.updateProduct(id, {
-          name: formData.name,
-          description: formData.description,
-          category: formData.category,
-          price: Number(formData.price),
-          image: formData.image,
-          features:
-            typeof formData.features === "string"
-              ? formData.features
-                  .split(",")
-                  .map((f) => f.trim())
-                  .filter(Boolean)
-              : formData.features,
-          rating: Number(formData.rating),
-          reviews: Number(formData.reviews),
-          stylingTip: formData.stylingTip,
-          affiliateLink: formData.affiliateLink,
-        });
+        await api.updateProduct(id, productPayload);
+        showToast("Product updated successfully", "success");
       } else {
         await api.createProduct({
-          name: formData.name,
-          description: formData.description,
-          category: formData.category,
-          price: Number(formData.price),
-          image: formData.image || "https://via.placeholder.com/800",
-          features:
-            typeof formData.features === "string"
-              ? formData.features
-                  .split(",")
-                  .map((f) => f.trim())
-                  .filter(Boolean)
-              : formData.features,
-          rating: Number(formData.rating),
-          reviews: Number(formData.reviews),
-          stylingTip: formData.stylingTip,
-          affiliateLink: formData.affiliateLink,
+          ...productPayload,
           inStock: true,
         });
+        showToast("Product created successfully", "success");
       }
       navigate("/admin/products");
-    } catch (err) {
+    } catch (err: any) {
       logError("Failed to save product", err);
+      showToast(
+        err.message || "Failed to save product. Please check all fields.",
+        "error",
+      );
     } finally {
       setLoading(false);
     }
@@ -210,7 +247,7 @@ const ProductForm: React.FC = () => {
             onChange={(e) => setRawJson(e.target.value)}
             rows={5}
             className="w-full font-mono text-xs px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-gray-50"
-            placeholder='{ "name": "Product Name", "price": 99.99, ... }'
+            placeholder='{ "name": "Product Name", "price": 99.99, "images": [{ "url": "...", "publicId": "..." }] }'
           ></textarea>
           <div className="flex justify-between items-center">
             <div className="group relative">
@@ -222,8 +259,9 @@ const ProductForm: React.FC = () => {
                     name: "Sample Product",
                     price: 49.99,
                     description: "Description here",
-                    category: ["Decor"],
-                    image: "https://example.com/image.jpg",
+                    images: [
+                      { url: "https://example.com/image.jpg", publicId: "ex1" },
+                    ],
                     features: ["Feature 1", "Feature 2"],
                     rating: 4.5,
                     reviews: 100,
@@ -311,7 +349,9 @@ const ProductForm: React.FC = () => {
                     >
                       <input
                         type="checkbox"
-                        checked={formData.category.includes(cat.name)}
+                        checked={formData.category.some(
+                          (c) => c.toLowerCase() === cat.name.toLowerCase(),
+                        )}
                         onChange={(e) => {
                           if (e.target.checked) {
                             setFormData((prev) => ({
@@ -322,7 +362,8 @@ const ProductForm: React.FC = () => {
                             setFormData((prev) => ({
                               ...prev,
                               category: prev.category.filter(
-                                (c) => c !== cat.name,
+                                (c) =>
+                                  c.toLowerCase() !== cat.name.toLowerCase(),
                               ),
                             }));
                           }
@@ -392,64 +433,88 @@ const ProductForm: React.FC = () => {
             Product Media
           </h2>
 
-          <FormInput
-            label="Image URL"
-            name="image"
-            value={formData.image}
-            onChange={handleChange}
-            placeholder="https://..."
-          />
-
           <input
             type="file"
             ref={fileInputRef}
             onChange={handleFileChange}
             className="hidden"
             accept="image/*"
+            multiple
           />
 
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            className={`mt-4 border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center text-center transition-colors cursor-pointer ${
-              uploading
-                ? "bg-gray-100 border-gray-300"
-                : "border-gray-300 hover:border-primary bg-gray-50"
-            }`}
-          >
-            {uploading ? (
-              <div className="flex flex-col items-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
-                <p className="text-sm font-medium text-gray-600">
-                  Uploading...
-                </p>
-              </div>
-            ) : formData.image ? (
-              <div className="w-full relative group">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            {images.map((img, index) => (
+              <div
+                key={index}
+                className="relative group aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-50"
+              >
                 <img
-                  src={formData.image}
-                  alt="Preview"
-                  className="max-h-48 rounded-lg mx-auto object-contain"
+                  src={img.url}
+                  alt={`Product aspect ${index + 1}`}
+                  className={`w-full h-full object-cover transition-opacity ${img.isMain ? "opacity-100" : "opacity-60 group-hover:opacity-100"}`}
                 />
-                <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
-                  <p className="text-white text-sm font-medium">
-                    Click to Change
-                  </p>
+                {img.isMain && (
+                  <div className="absolute top-1 left-1 bg-primary text-neutral-dark px-1.5 py-0.5 rounded text-[10px] font-bold shadow-sm z-10">
+                    Main
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                  {!img.isMain && (
+                    <button
+                      type="button"
+                      onClick={() => setMainImage(index)}
+                      className="p-1.5 bg-white text-neutral-dark rounded-full shadow hover:bg-primary transition-colors"
+                      title="Set as main image"
+                    >
+                      <span className="material-icons-outlined text-sm">
+                        star
+                      </span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => removeImage(index)}
+                    className="p-1.5 bg-white text-red-500 rounded-full shadow hover:bg-red-50 transition-colors"
+                    title="Remove image"
+                  >
+                    <span className="material-icons-outlined text-sm">
+                      delete
+                    </span>
+                  </button>
                 </div>
               </div>
-            ) : (
-              <>
-                <span className="material-icons-outlined text-4xl text-gray-400 mb-2">
-                  cloud_upload
-                </span>
-                <p className="text-sm font-medium text-gray-600">
-                  Click to upload or drag and drop
-                </p>
-                <p className="text-xs text-gray-400 mt-1">
-                  SVG, PNG, JPG (max. 800x400px)
-                </p>
-              </>
-            )}
+            ))}
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className={`aspect-square border-2 border-dashed rounded-lg flex flex-col items-center justify-center text-center transition-colors ${
+                uploading
+                  ? "bg-gray-100 border-gray-300"
+                  : "border-gray-200 hover:border-primary hover:bg-primary/5 bg-gray-50"
+              }`}
+            >
+              {uploading ? (
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              ) : (
+                <>
+                  <span className="material-icons-outlined text-2xl text-gray-400 mb-1">
+                    add_photo_alternate
+                  </span>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
+                    Add Photo
+                  </span>
+                </>
+              )}
+            </button>
           </div>
+
+          <p className="text-[10px] text-gray-400 flex items-center gap-1.5 leading-none">
+            <span className="material-icons-outlined text-sm">info</span>
+            You can upload multiple images. Use the star icon to select the
+            cover photo.
+          </p>
         </div>
 
         {/* Affiliate Info */}
@@ -477,8 +542,12 @@ const ProductForm: React.FC = () => {
           >
             Cancel
           </Button>
-          <Button type="submit" isLoading={loading}>
-            Save Product
+          <Button type="submit" isLoading={loading} disabled={uploading}>
+            {uploading
+              ? "Uploading..."
+              : isEditMode
+                ? "Update Product"
+                : "Save Product"}
           </Button>
         </div>
       </form>

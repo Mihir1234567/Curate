@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../lib/api";
 import { logError } from "../../lib/logger";
-import { Product } from "../../types";
+import { Product, Category } from "../../types";
 import { useConfirm } from "../../context/ConfirmContext";
 import { useToast } from "../../context/ToastContext";
 
@@ -11,6 +11,7 @@ const ProductManager: React.FC = () => {
   const { showToast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [officialCategories, setOfficialCategories] = useState<Category[]>([]);
 
   // Filtering & Pagination
   const [searchTerm, setSearchTerm] = useState("");
@@ -24,17 +25,21 @@ const ProductManager: React.FC = () => {
   );
 
   useEffect(() => {
-    const loadProducts = async () => {
+    const loadData = async () => {
       try {
-        const data = await api.getProducts({});
-        setProducts(data);
+        const [productsData, categoriesData] = await Promise.all([
+          api.getProducts({}),
+          api.getCategories(),
+        ]);
+        setProducts(productsData);
+        setOfficialCategories(categoriesData);
       } catch (err) {
-        logError("Failed to load products", err);
+        logError("Failed to load inventory data", err);
       } finally {
         setLoading(false);
       }
     };
-    loadProducts();
+    loadData();
   }, []);
 
   const handleDelete = async (id: string) => {
@@ -120,17 +125,8 @@ const ProductManager: React.FC = () => {
     currentPage * itemsPerPage,
   );
 
-  // Get unique categories for filter dropdown
-  const categories = [
-    "All",
-    ...Array.from(
-      new Set(
-        products.flatMap((p) =>
-          Array.isArray(p.category) ? p.category : [p.category],
-        ),
-      ),
-    ),
-  ];
+  // Get official categories for filter dropdown
+  const categoriesList = ["All", ...officialCategories.map((c) => c.name)];
 
   return (
     <div>
@@ -171,7 +167,7 @@ const ProductManager: React.FC = () => {
             onChange={(e) => setSelectedCategory(e.target.value)}
             className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 bg-white focus:outline-none focus:border-primary"
           >
-            {categories.map((cat) => (
+            {categoriesList.map((cat) => (
               <option key={cat} value={cat}>
                 {cat}
               </option>
@@ -254,7 +250,11 @@ const ProductManager: React.FC = () => {
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded bg-gray-100 overflow-hidden">
                           <img
-                            src={product.image}
+                            src={
+                              product.images?.find((img) => img.isMain)?.url ||
+                              product.images?.[0]?.url ||
+                              "https://via.placeholder.com/150"
+                            }
                             alt={product.name}
                             className="w-full h-full object-cover"
                           />

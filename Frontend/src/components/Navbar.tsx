@@ -5,8 +5,11 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { useWishlist } from "../lib/WishlistContext";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import logo from "../assets/logos/Logo1.png";
+import { api } from "../lib/api";
+import { Category } from "../types";
+import { logError } from "../lib/logger";
 
 const Navbar: React.FC = () => {
   const location = useLocation();
@@ -14,6 +17,28 @@ const Navbar: React.FC = () => {
   const [searchParams] = useSearchParams();
   const currentCategory = searchParams.get("category");
   const { wishlist } = useWishlist();
+
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const data = await api.getCategories();
+        // Filter out categories with 0 products, sort by count, take top 3
+        const topCategories = (data || [])
+          .filter((cat) => cat.productCount > 0)
+          .sort((a, b) => b.productCount - a.productCount)
+          .slice(0, 3);
+        setCategories(topCategories);
+      } catch (err) {
+        logError("Failed to fetch navbar categories", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadCategories();
+  }, []);
 
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -44,24 +69,16 @@ const Navbar: React.FC = () => {
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-500">
-            <Link
-              to="/products?category=Living%20Room"
-              className={`hover:text-primary transition-colors ${isActiveCategory("Living Room") ? "text-primary font-bold" : ""}`}
-            >
-              Living Room
-            </Link>
-            <Link
-              to="/products?category=Bedroom"
-              className={`hover:text-primary transition-colors ${isActiveCategory("Bedroom") ? "text-primary font-bold" : ""}`}
-            >
-              Bedroom
-            </Link>
-            <Link
-              to="/products?category=Lighting"
-              className={`hover:text-primary transition-colors ${isActiveCategory("Lighting") ? "text-primary font-bold" : ""}`}
-            >
-              Lighting
-            </Link>
+            {!loading &&
+              categories.map((cat) => (
+                <Link
+                  key={cat.id}
+                  to={`/products?category=${encodeURIComponent(cat.name)}`}
+                  className={`hover:text-primary transition-colors ${isActiveCategory(cat.name) ? "text-primary font-bold" : ""}`}
+                >
+                  {cat.name}
+                </Link>
+              ))}
             <Link
               to="/about"
               className={`hover:text-primary transition-colors ${isActive("/about") ? "text-primary font-bold" : ""}`}

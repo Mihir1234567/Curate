@@ -10,18 +10,33 @@ const router = Router();
 router.post(
   "/",
   requireAdminAuth,
-  upload.single("image"),
+  upload.array("images", 10),
   asyncHandler(async (req: Request, res: Response) => {
-    if (!req.file) {
-      throw new ApiError(400, "No image file provided");
+    const files = req.files as Express.Multer.File[];
+    console.log(
+      `📸 Uploading ${files?.length || 0} files:`,
+      files?.map((f) => ({
+        name: f.originalname,
+        size: f.size,
+        type: f.mimetype,
+      })),
+    );
+
+    if (!files || files.length === 0) {
+      throw new ApiError(400, "No image files provided");
     }
 
     const folder = (req.query.folder as string) || "curate";
-    const url = await uploadToCloudinary(req.file.buffer, folder);
+
+    const uploadPromises = files.map((file) =>
+      uploadToCloudinary(file.buffer, folder),
+    );
+
+    const results = await Promise.all(uploadPromises);
 
     res.status(201).json({
       success: true,
-      data: { url },
+      data: results, // Returns array of { url, publicId }
     });
   }),
 );

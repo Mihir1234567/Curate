@@ -38,10 +38,8 @@ async function request<T>(
     },
   });
 
-  // Auto-logout on 401 (expired/invalid token)
   if (res.status === 401 && getToken()) {
     removeToken();
-    // Redirect to login — only if not already on the login page
     if (!window.location.hash.includes("/admin/login")) {
       window.location.hash = "#/admin/login";
     }
@@ -136,7 +134,7 @@ export const api = {
 
   updateProduct: async (
     id: string,
-    product: Partial<Product>,
+    product: Partial<Product> & { removedImages?: string[] },
   ): Promise<Product> => {
     const res = await request<Product>(`/api/products/${id}`, {
       method: "PUT",
@@ -247,9 +245,13 @@ export const api = {
 
   // ── Upload ───────────────────────────────────────
 
-  uploadImage: async (file: File): Promise<string> => {
+  uploadImages: async (
+    files: File[],
+  ): Promise<{ url: string; publicId: string }[]> => {
     const formData = new FormData();
-    formData.append("image", file);
+    files.forEach((file) => {
+      formData.append("images", file);
+    });
 
     const url = `${API_BASE_URL}/api/upload`;
     const res = await fetch(url, {
@@ -257,7 +259,6 @@ export const api = {
       body: formData,
       headers: {
         ...authHeaders(),
-        // Do NOT set Content-Type — browser sets multipart boundary automatically
       },
     });
 
@@ -266,6 +267,6 @@ export const api = {
       throw new Error(json.message || "Image upload failed");
     }
 
-    return json.data.url;
+    return json.data;
   },
 };

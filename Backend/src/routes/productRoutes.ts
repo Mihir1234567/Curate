@@ -26,7 +26,7 @@ router.post(
     { field: "name", required: true, type: "string", maxLength: 200 },
     { field: "price", required: true, type: "number", min: 0 },
     { field: "category", required: true, type: "array" },
-    { field: "image", required: true, type: "string" },
+    { field: "images", required: true, type: "array" },
     { field: "description", required: true, type: "string", maxLength: 2000 },
   ]),
   createProduct,

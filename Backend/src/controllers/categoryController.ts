@@ -12,8 +12,25 @@ export const getCategories = asyncHandler(
       {
         $lookup: {
           from: "products",
-          localField: "name",
-          foreignField: "category",
+          let: { catName: "$name" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $in: [
+                    { $toLower: "$$catName" },
+                    {
+                      $map: {
+                        input: "$category",
+                        as: "c",
+                        in: { $toLower: "$$c" },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          ],
           as: "autoProducts",
         },
       },
@@ -35,15 +52,21 @@ export const getCategories = asyncHandler(
             ],
           },
           productCount: {
-            $add: [
-              { $size: "$autoProducts" },
-              { $size: { $ifNull: ["$productIds", []] } },
-            ],
+            $size: {
+              $setUnion: [
+                { $ifNull: ["$productIds", []] },
+                { $ifNull: ["$autoProducts._id", []] },
+              ],
+            },
           },
         },
       },
       { $sort: { name: 1 } },
     ]);
+    console.log(
+      `[getCategories] Found ${categories.length} categories. Active counts:`,
+      categories.map((c) => ({ name: c.name, count: c.productCount })),
+    );
 
     // Ensure _id is stringified for frontend id field
     const transformed = categories.map((cat: any) => ({
@@ -77,7 +100,8 @@ export const createCategory = asyncHandler(
       if (!product) {
         throw new ApiError(404, "Featured product not found");
       }
-      imageUrl = product.image;
+      imageUrl =
+        product.images.find((img) => img.isMain)?.url || product.images[0]?.url;
       imageSource = "product";
     }
 
@@ -87,8 +111,15 @@ export const createCategory = asyncHandler(
       imageSource,
       featuredProductId,
       productIds,
-      image: imageUrl, // Maintain legacy image field
     });
+
+    // SYNC: Add category name to all linked products
+    if (productIds && productIds.length > 0) {
+      await Product.updateMany(
+        { _id: { $in: productIds } },
+        { $addToSet: { category: name } },
+      );
+    }
 
     res.status(201).json({
       success: true,
@@ -99,14 +130,22 @@ export const createCategory = asyncHandler(
 
 export const updateCategory = asyncHandler(
   async (req: Request, res: Response) => {
-    const { name, imageUploadUrl, featuredProductId, productIds } = req.body;
+    // 1. Fetch old state for sync
+    const oldCategory = await Category.findById(req.params.id);
+    if (!oldCategory) {
+      throw new ApiError(404, "Category not found");
+    }
+
+    const oldName = oldCategory.name;
+    const oldProductIds = (oldCategory.productIds || []).map((id) =>
+      id.toString(),
+    );
 
     let updateData: any = { name, productIds };
-
+    // ... rest of updateData logic (featured product, etc.)
     if (imageUploadUrl) {
       updateData.imageUrl = imageUploadUrl;
       updateData.imageSource = "upload";
-      updateData.image = imageUploadUrl;
     }
 
     if (featuredProductId) {
@@ -114,12 +153,11 @@ export const updateCategory = asyncHandler(
       if (!product) {
         throw new ApiError(404, "Featured product not found");
       }
-      updateData.imageUrl = product.image;
+      updateData.imageUrl =
+        product.images.find((img) => img.isMain)?.url || product.images[0]?.url;
       updateData.imageSource = "product";
       updateData.featuredProductId = featuredProductId;
-      updateData.image = product.image;
     } else if (featuredProductId === null) {
-      // If explicitly null, remove featured product and source if not uploading
       updateData.featuredProductId = null;
       if (!imageUploadUrl) {
         updateData.imageSource = null;
@@ -139,6 +177,39 @@ export const updateCategory = asyncHandler(
       throw new ApiError(404, "Category not found");
     }
 
+    // SYNC LOGIC
+    // A. If name changed, update all products that had the old name
+    if (name && name !== oldName) {
+      await Product.updateMany(
+        { category: oldName },
+        { $set: { "category.$[elem]": name } },
+        { arrayFilters: [{ elem: oldName }] },
+      );
+    }
+
+    // B. If productIds changed
+    const newProductIds = (productIds || []).map((id: string) => id.toString());
+
+    // 1. Products added to this category
+    const added = newProductIds.filter(
+      (id: string) => !oldProductIds.includes(id),
+    );
+    if (added.length > 0) {
+      await Product.updateMany(
+        { _id: { $in: added } },
+        { $addToSet: { category: category.name } },
+      );
+    }
+
+    // 2. Products removed from this category
+    const removed = oldProductIds.filter((id) => !newProductIds.includes(id));
+    if (removed.length > 0) {
+      await Product.updateMany(
+        { _id: { $in: removed } },
+        { $pull: { category: category.name } },
+      );
+    }
+
     res.json({
       success: true,
       data: category,
@@ -154,6 +225,12 @@ export const deleteCategory = asyncHandler(
     if (!category) {
       throw new ApiError(404, "Category not found");
     }
+
+    // SYNC: Remove category name from all products
+    await Product.updateMany(
+      { category: category.name },
+      { $pull: { category: category.name } },
+    );
 
     res.json({
       success: true,

@@ -59,23 +59,48 @@ const ProductListing: React.FC = () => {
     loadData();
   }, []);
 
+  useEffect(() => {
+    console.log("ProductListing State:", {
+      selectedCategory,
+      productsCount: products.length,
+      categoriesCount: categories.length,
+    });
+  }, [selectedCategory, products, categories]);
+
   const [sortBy, setSortBy] = useState<string>("newest"); // newest, price-low, price-high
 
   const filteredProducts = products
     .filter((p) => {
+      const categoryObj = categories.find(
+        (c) => c.name.toLowerCase() === selectedCategory.toLowerCase(),
+      );
+
       const catMatch =
         selectedCategory === "All" ||
-        (Array.isArray(p.category)
-          ? p.category.includes(selectedCategory)
-          : p.category === selectedCategory);
-      const priceMatch = p.price >= minPrice && p.price <= maxPrice;
+        (p.category &&
+          (Array.isArray(p.category)
+            ? p.category.some(
+                (c) => c.toLowerCase() === selectedCategory.toLowerCase(),
+              )
+            : p.category.toLowerCase() === selectedCategory.toLowerCase())) ||
+        (categoryObj?.allProductIds &&
+          categoryObj.allProductIds.includes(p.id));
 
+      if (!catMatch && selectedCategory !== "All") {
+        console.log(`Cat mismatch for product "${p.name}":`, {
+          productCats: p.category,
+          selected: selectedCategory,
+          inLinkedIds: categoryObj?.allProductIds?.includes(p.id),
+        });
+      }
+
+      const priceMatch = p.price >= minPrice && p.price <= maxPrice;
       const searchMatch =
         !searchQuery ||
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.description.toLowerCase().includes(searchQuery.toLowerCase());
 
-      return catMatch && priceMatch && searchMatch;
+      return !!(catMatch && priceMatch && searchMatch);
     })
     .sort((a, b) => {
       switch (sortBy) {

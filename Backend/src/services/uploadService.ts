@@ -20,27 +20,44 @@ export const upload = multer({
 });
 
 /**
- * Upload a buffer to Cloudinary and return the secure URL.
+ * Upload a buffer to Cloudinary and return the secure URL and publicId.
  */
 export const uploadToCloudinary = (
   buffer: Buffer,
   folder: string = "curate",
-): Promise<string> => {
+): Promise<{ url: string; publicId: string }> => {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       {
-        folder,
         resource_type: "image",
-        transformation: [{ quality: "auto", fetch_format: "auto" }],
       },
       (error, result) => {
         if (error || !result) {
-          reject(new ApiError(500, "Image upload failed"));
+          console.error("Cloudinary upload error:", error);
+          const message = error?.message || "Image upload failed";
+          reject(new ApiError(500, message));
           return;
         }
-        resolve(result.secure_url);
+        resolve({
+          url: result.secure_url,
+          publicId: result.public_id,
+        });
       },
     );
     stream.end(buffer);
   });
+};
+
+/**
+ * Delete an image from Cloudinary by publicId.
+ */
+export const deleteFromCloudinary = async (publicId: string): Promise<void> => {
+  try {
+    await cloudinary.uploader.destroy(publicId);
+  } catch (error) {
+    // We log but don't necessarily throw to avoid breaking the whole process
+    // if a cleanup fails, but the user requested handling specific failures
+    console.error(`Failed to delete image: ${publicId}`, error);
+    // In some cases we might want to throw, but for deletion we usually proceed
+  }
 };

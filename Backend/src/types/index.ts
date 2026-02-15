@@ -6,7 +6,11 @@ export interface IProduct extends Document {
   slug: string;
   price: number;
   category: string[];
-  image: string;
+  images: {
+    url: string;
+    publicId: string;
+    isMain?: boolean;
+  }[];
   description: string;
   features: string[];
   inStock: boolean;
@@ -47,6 +51,9 @@ export interface ApiResponse<T> {
   success: boolean;
   data?: T;
   message?: string;
+  offset?: number;
+  limit?: number;
+  total?: number;
   meta?: PaginationMeta;
 }
 

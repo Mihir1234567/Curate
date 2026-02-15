@@ -17,11 +17,16 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     toggleWishlist(product.id);
   };
 
+  const primaryImage =
+    product.images?.find((img) => img.isMain)?.url ||
+    product.images?.[0]?.url ||
+    "https://via.placeholder.com/400x500?text=No+Image";
+
   return (
     <Link to={`/product/${product.id}`} className="group block h-full">
       <div className="relative aspect-[4/5] overflow-hidden rounded-xl bg-gray-100 mb-4 shadow-sm group-hover:shadow-md transition-all">
         <img
-          src={product.image}
+          src={primaryImage}
           alt={product.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />

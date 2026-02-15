@@ -3,6 +3,7 @@ import { Product } from "../models/Product";
 import { Category } from "../models/Category";
 import { asyncHandler } from "../utils/asyncHandler";
 import { ApiError } from "../utils/ApiError";
+import { deleteFromCloudinary } from "../services/uploadService";
 
 // ── GET /api/products ────────────────────────────────
 // Supports: ?page, ?limit, ?search, ?category, ?sort
@@ -31,8 +32,7 @@ export const getProducts = asyncHandler(async (req: Request, res: Response) => {
   }
 
   if (category && category !== "All") {
-    // Look up category by name to find if it exists
-    filter.category = { $in: [category as string] };
+    filter.category = { $regex: new RegExp(`^${category}$`, "i") };
   }
 
   // Build sort
@@ -81,7 +81,6 @@ export const getProductBySlug = asyncHandler(
     const product = await Product.findOne({ slug: req.params.slug });
 
     if (!product) {
-      // Also try by ID for backwards compatibility
       const byId = await Product.findById(req.params.slug).catch(() => null);
       if (!byId) {
         throw new ApiError(404, "Product not found");
@@ -97,6 +96,12 @@ export const getProductBySlug = asyncHandler(
 // ── POST /api/products ───────────────────────────────
 export const createProduct = asyncHandler(
   async (req: Request, res: Response) => {
+    const { images } = req.body;
+
+    if (!images || !Array.isArray(images) || images.length === 0) {
+      throw new ApiError(400, "At least one product image is required");
+    }
+
     const product = await Product.create(req.body);
     res.status(201).json({ success: true, data: product });
   },
@@ -105,14 +110,42 @@ export const createProduct = asyncHandler(
 // ── PUT /api/products/:id ────────────────────────────
 export const updateProduct = asyncHandler(
   async (req: Request, res: Response) => {
-    const product = await Product.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    });
+    const { removedImages, images: newImages, ...updateData } = req.body;
 
+    // 1. Fetch existing product first
+    const product = await Product.findById(req.params.id);
     if (!product) {
       throw new ApiError(404, "Product not found");
     }
+
+    // 2. Handle image removals if specified
+    if (removedImages && Array.isArray(removedImages)) {
+      for (const publicId of removedImages) {
+        // Delete from Cloudinary
+        await deleteFromCloudinary(publicId);
+        // Remove from local array
+        product.images = product.images.filter(
+          (img) => img.publicId !== publicId,
+        );
+      }
+    }
+
+    // 3. Handle new images if specified
+    if (newImages && Array.isArray(newImages)) {
+      // Overwrite with the latest state from frontend to prevent duplication
+      product.images = newImages;
+    }
+
+    // Ensure at least one image remains
+    if (product.images.length === 0) {
+      throw new ApiError(400, "Product must have at least one image");
+    }
+
+    // 4. Update other fields
+    Object.assign(product, updateData);
+
+    // Save updated product
+    await product.save();
 
     res.json({ success: true, data: product });
   },
@@ -121,11 +154,24 @@ export const updateProduct = asyncHandler(
 // ── DELETE /api/products/:id ─────────────────────────
 export const deleteProduct = asyncHandler(
   async (req: Request, res: Response) => {
-    const product = await Product.findByIdAndDelete(req.params.id);
+    // 1. Fetch product first
+    const product = await Product.findById(req.params.id);
 
     if (!product) {
       throw new ApiError(404, "Product not found");
     }
+
+    // 2. Cleanup Cloudinary images
+    if (product.images && product.images.length > 0) {
+      const deletePromises = product.images.map((img) =>
+        deleteFromCloudinary(img.publicId),
+      );
+      // Wait for deletions (handled gracefully by deleteFromCloudinary)
+      await Promise.all(deletePromises);
+    }
+
+    // 3. Delete Mongo document
+    await Product.findByIdAndDelete(req.params.id);
 
     res.json({ success: true, data: null });
   },
@@ -140,6 +186,18 @@ export const bulkDeleteProducts = asyncHandler(
       throw new ApiError(400, "Please provide an array of product IDs");
     }
 
+    // Fetch all products to clean up images
+    const products = await Product.find({ _id: { $in: ids } });
+
+    for (const product of products) {
+      if (product.images && product.images.length > 0) {
+        const deletePromises = product.images.map((img) =>
+          deleteFromCloudinary(img.publicId),
+        );
+        await Promise.all(deletePromises);
+      }
+    }
+
     await Product.deleteMany({ _id: { $in: ids } });
 
     res.json({ success: true, data: null });
@@ -147,7 +205,6 @@ export const bulkDeleteProducts = asyncHandler(
 );
 
 // ── GET /api/products/stats ──────────────────────────
-// Returns summary stats for the admin dashboard
 export const getStats = asyncHandler(async (_req: Request, res: Response) => {
   const [totalProducts, totalCategories] = await Promise.all([
     Product.countDocuments(),
