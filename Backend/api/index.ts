@@ -1,4 +1,12 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+
+// Disable Vercel's default body parser so Express and Multer can handle the stream
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
 import app from "../src/app";
 import { connectDB } from "../src/config/db";
 import { configureCloudinary } from "../src/config/cloudinary";
