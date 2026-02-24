@@ -19,12 +19,8 @@ app.use(morgan("dev"));
 // ── Security ─────────────────────────────────────────
 app.use(helmet());
 
-const envOrigins = process.env.CORS_ORIGIN?.split(",") || [];
-const allowedOrigins = [
+const allowedOrigins = process.env.CORS_ORIGIN?.split(",") || [
   "http://localhost:3000",
-  "https://www.curatehomedecor.shop",
-  "https://curatehomedecor.shop",
-  ...envOrigins,
 ];
 
 app.use(
@@ -63,8 +59,8 @@ const limiter = rateLimit({
 app.use("/api/", limiter);
 
 // ── Body Parsing ─────────────────────────────────────
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true }));
 
 // ── API Routes ───────────────────────────────────────
 app.use("/api/auth", authRoutes);

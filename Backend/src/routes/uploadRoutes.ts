@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { uploadToCloudinary } from "../services/uploadService";
+import { upload, uploadToCloudinary } from "../services/uploadService";
 import { asyncHandler } from "../utils/asyncHandler";
 import { ApiError } from "../utils/ApiError";
 import { requireAdminAuth } from "../middlewares/auth";
@@ -10,19 +10,26 @@ const router = Router();
 router.post(
   "/",
   requireAdminAuth,
+  upload.array("images", 10),
   asyncHandler(async (req: Request, res: Response) => {
-    const images: string[] = req.body.images;
+    const files = req.files as Express.Multer.File[];
+    console.log(
+      `📸 Uploading ${files?.length || 0} files:`,
+      files?.map((f) => ({
+        name: f.originalname,
+        size: f.size,
+        type: f.mimetype,
+      })),
+    );
 
-    console.log(`📸 Uploading ${images?.length || 0} base64 images`);
-
-    if (!images || !Array.isArray(images) || images.length === 0) {
-      throw new ApiError(400, "No image data provided");
+    if (!files || files.length === 0) {
+      throw new ApiError(400, "No image files provided");
     }
 
     const folder = (req.query.folder as string) || "curate";
 
-    const uploadPromises = images.map((base64String) =>
-      uploadToCloudinary(base64String, folder),
+    const uploadPromises = files.map((file) =>
+      uploadToCloudinary(file.buffer, folder),
     );
 
     const results = await Promise.all(uploadPromises);

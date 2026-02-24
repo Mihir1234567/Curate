@@ -248,26 +248,25 @@ export const api = {
   uploadImages: async (
     files: File[],
   ): Promise<{ url: string; publicId: string }[]> => {
-    // Convert files to Base64
-    const base64Promises = files.map((file) => {
-      return new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = (error) => reject(error);
-      });
+    const formData = new FormData();
+    files.forEach((file) => {
+      formData.append("images", file);
     });
 
-    const base64Images = await Promise.all(base64Promises);
-
-    const res = await request<{ url: string; publicId: string }[]>(
-      "/api/upload",
-      {
-        method: "POST",
-        body: JSON.stringify({ images: base64Images }),
+    const url = `${API_BASE_URL}/api/upload`;
+    const res = await fetch(url, {
+      method: "POST",
+      body: formData,
+      headers: {
+        ...authHeaders(),
       },
-    );
+    });
 
-    return res.data;
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || "Image upload failed");
+    }
+
+    return json.data;
   },
 };

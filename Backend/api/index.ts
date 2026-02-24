@@ -1,5 +1,4 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-
 import app from "../src/app";
 import { connectDB } from "../src/config/db";
 import { configureCloudinary } from "../src/config/cloudinary";
