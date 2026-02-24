@@ -1,0 +1,30 @@
+HTTP/1.1 401 Unauthorized
+Access-Control-Allow-Credentials: true
+Access-Control-Allow-Origin: https://www.curatehomedecor.shop
+Cache-Control: public, max-age=0, must-revalidate
+Content-Length: 53
+Content-Security-Policy: default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests
+Content-Type: application/json; charset=utf-8
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Resource-Policy: same-origin
+Date: Tue, 24 Feb 2026 17:14:12 GMT
+Etag: W/"35-4nvFZC/g3HhErMEwmbduNHqjDoU"
+Origin-Agent-Cluster: ?1
+Ratelimit-Limit: 1000
+Ratelimit-Policy: 1000;w=900
+Ratelimit-Remaining: 990
+Ratelimit-Reset: 264
+Referrer-Policy: no-referrer
+Server: Vercel
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+Vary: Origin
+X-Content-Type-Options: nosniff
+X-Dns-Prefetch-Control: off
+X-Download-Options: noopen
+X-Frame-Options: SAMEORIGIN
+X-Permitted-Cross-Domain-Policies: none
+X-Vercel-Cache: MISS
+X-Vercel-Id: bom1::iad1::wmj9h-1771953252439-5352ea64c65a
+X-Xss-Protection: 0
+
+{"success":false,"message":"Authentication required"}

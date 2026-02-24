@@ -1,0 +1,24 @@
+HTTP/1.1 204 No Content
+Access-Control-Allow-Credentials: true
+Access-Control-Allow-Headers: Content-Type,Authorization
+Access-Control-Allow-Methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+Access-Control-Allow-Origin: https://www.curatehomedecor.shop
+Cache-Control: public, max-age=0, must-revalidate
+Content-Security-Policy: default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Resource-Policy: same-origin
+Date: Tue, 24 Feb 2026 17:13:12 GMT
+Origin-Agent-Cluster: ?1
+Referrer-Policy: no-referrer
+Server: Vercel
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+Vary: Origin
+X-Content-Type-Options: nosniff
+X-Dns-Prefetch-Control: off
+X-Download-Options: noopen
+X-Frame-Options: SAMEORIGIN
+X-Permitted-Cross-Domain-Policies: none
+X-Vercel-Cache: MISS
+X-Vercel-Id: bom1::iad1::8d9kz-1771953192435-aa9b14806fd9
+X-Xss-Protection: 0
+
