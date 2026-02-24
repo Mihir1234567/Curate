@@ -20,32 +20,26 @@ export const upload = multer({
 });
 
 /**
- * Upload a buffer to Cloudinary and return the secure URL and publicId.
+ * Upload a Base64 string to Cloudinary and return the secure URL and publicId.
  */
-export const uploadToCloudinary = (
-  buffer: Buffer,
+export const uploadToCloudinary = async (
+  base64Image: string,
   folder: string = "curate",
 ): Promise<{ url: string; publicId: string }> => {
-  return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      {
-        resource_type: "image",
-      },
-      (error, result) => {
-        if (error || !result) {
-          console.error("Cloudinary upload error:", error);
-          const message = error?.message || "Image upload failed";
-          reject(new ApiError(500, message));
-          return;
-        }
-        resolve({
-          url: result.secure_url,
-          publicId: result.public_id,
-        });
-      },
-    );
-    stream.end(buffer);
-  });
+  try {
+    const result = await cloudinary.uploader.upload(base64Image, {
+      folder,
+      resource_type: "image",
+    });
+    return {
+      url: result.secure_url,
+      publicId: result.public_id,
+    };
+  } catch (error: any) {
+    console.error("Cloudinary upload error:", error);
+    const message = error?.message || "Image upload failed";
+    throw new ApiError(500, message);
+  }
 };
 
 /**
