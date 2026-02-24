@@ -19,8 +19,12 @@ app.use(morgan("dev"));
 // ── Security ─────────────────────────────────────────
 app.use(helmet());
 
-const allowedOrigins = process.env.CORS_ORIGIN?.split(",") || [
+const envOrigins = process.env.CORS_ORIGIN?.split(",") || [];
+const allowedOrigins = [
   "http://localhost:3000",
+  "https://www.curatehomedecor.shop",
+  "https://curatehomedecor.shop",
+  ...envOrigins,
 ];
 
 app.use(

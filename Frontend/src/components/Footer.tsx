@@ -65,12 +65,6 @@ const Footer: React.FC = () => {
         <p className="text-xs text-gray-400">
           © 2026 Curate Home Decor. All rights reserved.
         </p>
-        <Link
-          to="/admin/login"
-          className="text-[10px] text-gray-300 hover:text-gray-500 transition-colors mt-4 block"
-        >
-          Admin Panel
-        </Link>
       </div>
     </footer>
   );
