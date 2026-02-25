@@ -29,6 +29,7 @@ const UnderConstruction = React.lazy(
 const FeedbackManager = React.lazy(
   () => import("./pages/admin/FeedbackManager"),
 );
+const PinParser = React.lazy(() => import("./pages/admin/PinParser"));
 import AdminLogin from "./pages/admin/AdminLogin";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { WishlistProvider } from "./lib/WishlistContext";
@@ -184,6 +185,14 @@ const App: React.FC = () => {
                   element={
                     <Suspense fallback={<AdminFallback />}>
                       <UnderConstruction title="Settings" />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="pin-parser"
+                  element={
+                    <Suspense fallback={<AdminFallback />}>
+                      <PinParser />
                     </Suspense>
                   }
                 />

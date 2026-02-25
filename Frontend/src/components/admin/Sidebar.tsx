@@ -12,6 +12,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const navItems = [
     { label: "Products", icon: "shopping_bag", path: "/admin/products" },
     { label: "Categories", icon: "category", path: "/admin/categories" },
+    { label: "Pin Parser", icon: "content_cut", path: "/admin/pin-parser" },
     { label: "Feedback", icon: "feedback", path: "/admin/feedback" },
     { label: "Settings", icon: "settings", path: "/admin/settings" },
   ];
