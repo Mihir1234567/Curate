@@ -1,6 +1,7 @@
 import multer from "multer";
 import { cloudinary } from "../config/cloudinary";
 import { ApiError } from "../utils/ApiError";
+import sharp from "sharp";
 
 // Multer memory storage — files stay in RAM buffer (no temp disk writes)
 const storage = multer.memoryStorage();
@@ -22,14 +23,28 @@ export const upload = multer({
 /**
  * Upload a buffer to Cloudinary and return the secure URL and publicId.
  */
-export const uploadToCloudinary = (
+export const uploadToCloudinary = async (
   buffer: Buffer,
   folder: string = "curate",
 ): Promise<{ url: string; publicId: string }> => {
+  // Compress image before uploading to avoid timeouts with large files
+  let optimizedBuffer = buffer;
+  try {
+    optimizedBuffer = await sharp(buffer)
+      .resize(1600, 1600, { fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: 80 })
+      .toBuffer();
+  } catch (err) {
+    console.error("Image compression error:", err);
+    // Proceed with original buffer if compression fails
+  }
+
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       {
-        resource_type: "image",
+        resource_type: "auto",
+        folder: folder,
+        timeout: 120000,
       },
       (error, result) => {
         if (error || !result) {
@@ -44,7 +59,7 @@ export const uploadToCloudinary = (
         });
       },
     );
-    stream.end(buffer);
+    stream.end(optimizedBuffer);
   });
 };
 
